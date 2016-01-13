@@ -5,6 +5,7 @@
 
   roles:
     - williamyeh.oracle-java
+    - yaegashi.blockinfile
 
   vars:
     java_version: 8

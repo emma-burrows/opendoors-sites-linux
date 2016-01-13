@@ -7,7 +7,7 @@
     - yaegashi.blockinfile
 
   vars:
-    website_path: ~/Code/misc/OTW/sites
+    website_path: ~/Code/misc/OpenDoors/sites
 
   vars_prompt:
     - name: "site_keyname"
@@ -29,13 +29,15 @@
     file: path=/var/www/{{ site_keyname }} state=absent
 
   - name: Create directory for new site
-    file: path=/var/www/{{ site_keyname }} state=directory owner=opendoors_web group=otwmysql mode=0775
+    file: path=/var/www/{{ site_keyname }} state=directory owner=opendoors_web group=otwmysql
 
   - name: Generate init.d script for site
     template: 
       src: dist-play-app-initd 
       dest: /etc/init.d/dist-play-{{ site_keyname }}-initd
       mode: a+x
+      owner: opendoors_web
+      group: otwmysql
 
   - name: Copy site files to remote server
     unarchive:
@@ -59,6 +61,7 @@
     command: "/etc/init.d/dist-play-{{ site_keyname }}-initd restart"
     async: 15
     poll: 5
+    ignore_errors: yes
     notify:
       - Restart nginx
 
