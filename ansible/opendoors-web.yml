@@ -1,0 +1,70 @@
+---
+- hosts: otw
+  remote_user: opendoors_web
+  sudo: yes
+
+  roles:
+    - yaegashi.blockinfile
+
+  vars:
+    website_path: ~/Code/misc/OpenDoors/sites
+
+  vars_prompt:
+    - name: "site_keyname"
+      prompt: "Key name for new site (no spaces, no punctuation) ? "
+      private: no
+    - name: "site_port"
+      prompt: "Port number for new site (> 9000) ? "
+      private: no
+
+  tasks:
+
+  - name: Generate distribution for Play application
+    local_action: shell sbt clean dist
+    become_user: emma
+    args:
+      chdir: "{{ website_path }}/{{ site_keyname }}"
+
+  - name: Delete directory for new site
+    file: path=/var/www/{{ site_keyname }} state=absent
+
+  - name: Create directory for new site
+    file: path=/var/www/{{ site_keyname }} state=directory owner=opendoors_web group=otwmysql
+
+  - name: Generate init.d script for site
+    template: 
+      src: dist-play-app-initd 
+      dest: /etc/init.d/dist-play-{{ site_keyname }}-initd
+      mode: a+x
+      owner: opendoors_web
+      group: otwmysql
+
+  - name: Copy site files to remote server
+    unarchive:
+      copy: yes
+      src: "{{ website_path }}/{{ site_keyname }}/target/universal/{{ site_keyname }}.zip"
+      dest: /var/www/
+
+  - name: Update Nginx config with site details
+    blockinfile:
+      dest: /etc/nginx/sites-available/opendoors-web.ao3.org
+      marker: "# {mark} {{ site_keyname }} on {{ site_port }}"
+      insertbefore: "^\\s+location / {"
+      content: |
+        
+            location /{{ site_keyname }}/ {
+                    rewrite ^/{{ site_keyname }}(/.*)$ $1 break;
+                    proxy_pass http://127.0.0.1:{{ site_port }};
+            }
+
+  - name: Start the Play application on the remote site
+    command: "/etc/init.d/dist-play-{{ site_keyname }}-initd restart"
+    async: 15
+    poll: 5
+    ignore_errors: yes
+    notify:
+      - Restart nginx
+
+  handlers:
+    - name: Restart nginx
+      action: service name=nginx state=restarted
