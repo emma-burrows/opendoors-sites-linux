@@ -15,22 +15,22 @@
 
   - name: Delete application folder
     local_action: shell rm -rf {{website_path}}/{{site_keyname}}
-    become_user: {{ local_user }}
+    become_user: "{{ local_user }}"
 
   - name: Create application folder
     local_action: shell cp -r {{code_path}} {{website_path}}/{{site_keyname}}
-    become_user: {{ local_user }}
+    become_user: "{{ local_user }}"
 
   - name: Rename new application
     template:
       src: server.conf
       dest: "{{website_path}}/{{ site_keyname }}/conf/server.conf"
-    become_user: {{ local_user }}
+    become_user: "{{ local_user }}"
     delegate_to: 127.0.0.1
 
   - name: Generate distribution for Play application
-    local_action: shell sbt clean dist
-    become_user: {{ local_user }}
+    local_action: shell sbt clean universal:packageZipTarball
+    become_user: "{{ local_user }}"
     args:
       chdir: "{{ website_path }}/{{ site_keyname }}"
 
@@ -55,11 +55,11 @@
   - name: Copy site files to remote server
     unarchive:
       copy: yes
-      src: "{{ website_path }}/{{ site_keyname }}/target/universal/{{ site_keyname }}.zip"
+      src: "{{ website_path }}/{{ site_keyname }}/target/universal/{{ site_keyname }}.tgz"
       dest: /var/www/
       owner: opendoors_web
       group: otwmysql
-      mode: g+rwx
+      mode: a+rwx
 
   - name: Update Nginx config with site details
     blockinfile:
@@ -75,9 +75,9 @@
 
   - name: Create MySql database
     mysql_db:
-      name: {{ site_keyname }}
-      login_user: {{ mysql_user }}
-      login_password: {{ mysql_password }}
+      name: "{{ site_keyname }}"
+      login_user: "{{ mysql_user }}"
+      login_password: "{{ mysql_password }}"
       state: present
 
   - name: Start the Play application on the remote site

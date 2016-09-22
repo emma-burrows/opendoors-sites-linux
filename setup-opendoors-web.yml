@@ -18,3 +18,4 @@
       - git
       - nginx
       - mysql
+      - python-mysqldb
